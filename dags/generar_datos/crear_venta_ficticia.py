@@ -40,7 +40,7 @@ def generar_datos_calidad():
 def generar_datos_agente():
     agente = {
         'cedula': utilidades.cedula_aleatoria(),
-        'fecha_ingreso': utilidades.generar_fecha_hoy().strftime('%Y-%m-%d'),
+        'fecha_ingreso': utilidades.generar_fecha_aleatoria().strftime('%Y-%m-%d'),
         'observaciones_venta': utilidades.cedula_aleatoria(),
         'estado': utilidades.estados_aleatorio()
     }
@@ -61,8 +61,13 @@ def insertar_data_bd(ti):
     agente = ti.xcom_pull(key='agente', task_ids='generar_datos_task')
     datos = {**datos_cliente, **datos_calidad, **agente}
     api_url = 'http://host.docker.internal:5700/crear-venta/'
-    response = requests.post(api_url, json=datos)
-    print(response)
+    
+    try:
+        response = requests.post(api_url, json=datos)
+        response.raise_for_status()
+        print("Datos insertados correctamente:", response.json())
+    except requests.exceptions.RequestException as e:
+        print("Error al insertar datos:", e)
 
 # Define los argumentos por defecto del DAG
 default_args = {
@@ -80,7 +85,8 @@ dag = DAG(
     'generar_venta_ficticia',
     default_args=default_args,
     description='Un simple DAG para generar ventas ficticias',
-    schedule_interval=timedelta(minutes=2)
+    schedule_interval=timedelta(minutes=2),
+    catchup=False #No se pondrá al dia si se desactiva
 )
 
 # Crear una tarea utilizando el operador PythonOperator para preparar_datos
